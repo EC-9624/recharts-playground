@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 
 const ScrollHeatMap = () => {
     const canvasRef = useRef(null);
@@ -38,7 +38,6 @@ const ScrollHeatMap = () => {
         }
     };
 
-    // Color schemes - simplified to standard heat colors
     const colorSchemes = {
         standard: {
             name: '標準',
@@ -62,57 +61,77 @@ const ScrollHeatMap = () => {
         const ctx = canvas.getContext('2d');
         const contentRect = content.getBoundingClientRect();
 
-        // Set canvas size to match content
         canvas.width = contentRect.width;
         canvas.height = contentRect.height;
         canvas.style.width = `${contentRect.width}px`;
         canvas.style.height = `${contentRect.height}px`;
 
-        // Clear canvas
         ctx.clearRect(0, 0, contentRect.width, contentRect.height);
 
         if (!showHeatMap) return;
 
-        // Only use total_time data for clean gradient
         const timeValues = Object.values(heatMapData.total_time);
         const maxTime = Math.max(...timeValues);
         const minTime = Math.min(...timeValues);
 
-        // Create a single smooth vertical gradient
-        const gradient = ctx.createLinearGradient(0, 0, 0, contentRect.height);
+        const verticalGradient = ctx.createLinearGradient(0, 0, 0, contentRect.height);
 
-        timeValues.forEach((time, index) => {
-            const position = index / (timeValues.length - 1);
-            const intensity = (time - minTime) / (maxTime - minTime); // Normalize to 0-1
+        const step = 5;
+        for (let i = 0; i < timeValues.length; i += step) {
+            const time = timeValues[i];
+            const position = i / (timeValues.length - 1);
+            const intensity = (time - minTime) / (maxTime - minTime);
 
-            let color;
-            if (intensity < 0.25) {
-                // Blue to Cyan
-                const t = intensity * 4;
-                color = `rgba(${Math.round(0 * (1 - t) + 0 * t)}, ${Math.round(0 * (1 - t) + 255 * t)}, ${Math.round(255 * (1 - t) + 255 * t)}, ${intensity * opacity})`;
-            } else if (intensity < 0.5) {
-                // Cyan to Green
-                const t = (intensity - 0.25) * 4;
-                color = `rgba(0, ${Math.round(255)}, ${Math.round(255 * (1 - t) + 0 * t)}, ${intensity * opacity})`;
-            } else if (intensity < 0.75) {
-                // Green to Yellow
-                const t = (intensity - 0.5) * 4;
-                color = `rgba(${Math.round(0 * (1 - t) + 255 * t)}, 255, 0, ${intensity * opacity})`;
+            let red, green, blue;
+            if (intensity < 0.33) {
+                const t = intensity / 0.33;
+                red = 0;
+                green = Math.round(t * 255);
+                blue = Math.round((1 - t) * 255);
+            } else if (intensity < 0.66) {
+                const t = (intensity - 0.33) / 0.33;
+                red = Math.round(t * 255);
+                green = 255;
+                blue = 0;
             } else {
-                // Yellow to Red
-                const t = (intensity - 0.75) * 4;
-                color = `rgba(255, ${Math.round(255 * (1 - t) + 0 * t)}, 0, ${intensity * opacity})`;
+                const t = (intensity - 0.66) / 0.34;
+                red = 255;
+                green = Math.round((1 - t) * 255);
+                blue = 0;
             }
 
-            gradient.addColorStop(position, color);
-        });
+            const alpha = Math.max(0.3, intensity * opacity * 0.8);
+            verticalGradient.addColorStop(position, `rgba(${red}, ${green}, ${blue}, ${alpha})`);
+        }
 
-        ctx.fillStyle = gradient;
+        const lastIndex = timeValues.length - 1;
+        const lastTime = timeValues[lastIndex];
+        const lastIntensity = (lastTime - minTime) / (maxTime - minTime);
+        let finalRed, finalGreen, finalBlue;
+        if (lastIntensity < 0.33) {
+            const t = lastIntensity / 0.33;
+            finalRed = 0;
+            finalGreen = Math.round(t * 255);
+            finalBlue = Math.round((1 - t) * 255);
+        } else if (lastIntensity < 0.66) {
+            const t = (lastIntensity - 0.33) / 0.33;
+            finalRed = Math.round(t * 255);
+            finalGreen = 255;
+            finalBlue = 0;
+        } else {
+            const t = (lastIntensity - 0.66) / 0.34;
+            finalRed = 255;
+            finalGreen = Math.round((1 - t) * 255);
+            finalBlue = 0;
+        }
+        const finalAlpha = Math.max(0.3, lastIntensity * opacity * 0.8);
+        verticalGradient.addColorStop(1, `rgba(${finalRed}, ${finalGreen}, ${finalBlue}, ${finalAlpha})`);
+
+        ctx.fillStyle = verticalGradient;
         ctx.fillRect(0, 0, contentRect.width, contentRect.height);
     };
 
     useEffect(() => {
-        // Trigger content loaded after component mounts
         const timer = setTimeout(() => {
             setContentLoaded(true);
         }, 100);
@@ -138,7 +157,6 @@ const ScrollHeatMap = () => {
 
     return (
         <div className="w-full min-h-screen bg-gray-100">
-            {/* Control Panel */}
             <div className="bg-white border-b border-gray-200 p-4">
                 <div className="max-w-7xl mx-auto">
                     <div className="flex flex-wrap items-center gap-6">
@@ -171,9 +189,7 @@ const ScrollHeatMap = () => {
                 </div>
             </div>
 
-            {/* Main Content Area with Heatmap Overlay */}
             <div className="relative" ref={containerRef}>
-                {/* Percentage Axis */}
                 <div className="absolute left-0 top-0 bottom-0 w-16 bg-white bg-opacity-90 border-r border-gray-300 z-20">
                     {[0, 25, 50, 75, 100].map((percent) => (
                         <div
@@ -186,13 +202,11 @@ const ScrollHeatMap = () => {
                     ))}
                 </div>
 
-                {/* Your HTML Content */}
                 <div
                     ref={contentRef}
                     className="relative bg-white ml-16"
                     style={{ minHeight: '100vh' }}
                 >
-                    {/* This is your actual HTML content */}
                     <div className="heatmap_view -v3 pc js-iframe_contents" style={{ visibility: 'visible', opacity: 1 }}>
                         <div className="entry wide js-height">
                             <div className="content">
@@ -216,7 +230,6 @@ const ScrollHeatMap = () => {
                                                     <time className="time text-gray-500 text-sm">2025年9月8日 17時28分</time>
                                                 </div>
                                                 <div className="flex gap-2">
-                                                    {/* Social media icons */}
                                                     <div className="w-8 h-8 bg-blue-500 rounded"></div>
                                                     <div className="w-8 h-8 bg-blue-600 rounded"></div>
                                                     <div className="w-8 h-8 bg-green-500 rounded"></div>
@@ -266,16 +279,14 @@ const ScrollHeatMap = () => {
                     </div>
                 </div>
 
-                {/* Heatmap Canvas Overlay */}
                 <canvas
                     ref={canvasRef}
                     className="absolute top-0 pointer-events-none z-10"
                     style={{
-                        left: '64px' // Offset by axis width
+                        left: '64px'
                     }}
                 />
 
-                {/* Intensity Scale */}
                 {showHeatMap && (
                     <div className="fixed top-20 right-4 bg-white bg-opacity-95 rounded-lg p-3 shadow-lg z-30 border">
                         <div className="text-xs font-medium text-gray-700 mb-2">エンゲージメント</div>
